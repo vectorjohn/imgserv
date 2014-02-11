@@ -28,6 +28,8 @@ func main() {
         io.WriteString( resp, "Hello world!\n" + req.URL.Path )
     })
 
+    http.HandleFunc( "/index.json", indexJson )
+
     relHandler( "/thumb/", serveThumb )
 
 	listenOn := "localhost:" + port
@@ -36,6 +38,38 @@ func main() {
 	http.ListenAndServe(listenOn, nil )
 }
 
+func indexJson( resp http.ResponseWriter, req *http.Request ) {
+    var outerr error
+    defer func() {
+        if recover() != nil {
+            if outerr == nil {
+                http.Error( resp, "Internal Server Error", 500 )
+            } else {
+                http.Error( resp, outerr.Error(), 500 )
+            }
+        }
+    }()
+
+    dir, err := os.Open( "." )
+    defer dir.Close()
+
+    if err != nil {
+        log.Panic( "ERROR: Could not read directory" )
+    }
+
+    files, err := dir.Readdirnames( -1 )
+    if err != nil {
+        log.Panic( "ERROR: Could not read directory" )
+    }
+
+    io.WriteString( resp, "[\n" )
+    fileCSV := strings.Join( files, "\",\n\"" )
+    if len( fileCSV ) > 0 {
+        io.WriteString( resp, "\"" + fileCSV + "\"\n" )
+    }
+
+    io.WriteString( resp, "]" )
+}
 
 var icache map[string]*bytes.Reader
 
@@ -46,7 +80,6 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
     log.Println( "Requested image", path )
 
     defer func() {
-        //if err := recover(); err != nil {
         if recover() != nil {
             if outerr == nil {
                 http.Error( resp, "Internal Server Error", 500 )
