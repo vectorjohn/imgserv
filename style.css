@@ -1,0 +1,18 @@
+ul.thumbnails {
+    margin: 0;
+    padding: 0;
+    display: block;
+    width: 650px;
+}
+
+ul.thumbnails li {
+    display: block;
+    list-style-type: none;
+    margin: 0;
+    padding: 4px;
+    float: left;
+}
+
+ul.thumbnails a {
+    display: block;
+}

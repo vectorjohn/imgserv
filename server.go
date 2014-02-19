@@ -15,6 +15,9 @@ import (
     "image/jpeg"
     _ "image/png"
     "code.google.com/p/graphics-go/graphics"
+    "container/heap"
+    "encoding/json"
+    "regexp"
 )
 
 func main() {
@@ -50,34 +53,65 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
         }
     }()
 
-    dir, err := os.Open( "." )
+    //TODO: make dir scanning possible.
+    dir, err := os.Open( "./" )
     defer dir.Close()
 
     if err != nil {
         log.Panic( "ERROR: Could not read directory" )
     }
 
-    files, err := dir.Readdirnames( -1 )
+    //TODO: Filter out non-images
+    filestats, err := dir.Readdir( -1 )
     if err != nil {
         log.Panic( "ERROR: Could not read directory" )
     }
 
-    io.WriteString( resp, "[\n" )
-    fileCSV := strings.Join( files, "\",\n\"" )
-    if len( fileCSV ) > 0 {
-        io.WriteString( resp, "\"" + fileCSV + "\"\n" )
+    
+    files := make([]string, len(filestats))
+    for i, file := range filestats {
+        if file.IsDir() {
+            files[i] = file.Name() + "/"
+        } else if isImage( &file ) {
+            files[i] = file.Name()
+        }
     }
 
-    io.WriteString( resp, "]" )
+    out := map[string]interface{}{
+        "status": "OK",
+        "files": files,
+    }
+    
+    if bytes, err := json.Marshal( out ); err == nil {
+        resp.Write( bytes )
+    } else {
+        io.WriteString( resp, "[]" )
+    }
 }
 
-var icache map[string]*bytes.Reader
+var imgRE *regexp.Regexp = nil
+func isImage( f *os.FileInfo ) (bool) {
+    if imgRE == nil {
+        imgRE, err := regexp.Compile( "" )
+        if err != nil {
+            panic( "WTF, bad re?" )
+        }
+    }
+
+    return imgRE.MatchString( f.Name() )
+}
+
+//var icache map[string]*bytes.Reader
+var icache *ImageCache = NewImageCache()
+var maxCache int = 100
 
 func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
 
     var outerr error
 
     log.Println( "Requested image", path )
+    //log.Println( "Oldest: ", icache.Top() )
+    //log.Println( "heap: ", icache.GetPaths() )
 
     defer func() {
         if recover() != nil {
@@ -89,13 +123,18 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
         }
     }()
 
+    /*
     if icache == nil {
-        icache = make( map[string]*bytes.Reader, 100 )
+        //icache = make( map[string]*bytes.Reader, 100 )
+        icache = &ImageCache{}
     }
+    */
 
-    cached, ok := icache[ path ]
+    cached, ok := icache.Find( path )
 
-    if !ok {
+    if ok {
+        icache.Update( path )
+    } else {
         log.Println( "Generating thumbnail" )
         fd, err := os.Open( path )
         defer fd.Close()
@@ -130,7 +169,14 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
         }
 
         cached = bytes.NewReader( data )
-        icache[ path ] = cached
+    
+        heap.Push( icache, NewCacheItem( path, cached ) )
+
+        if icache.Len() > maxCache {
+            log.Println( "Dropping oldest cache: ", heap.Pop( icache ).(*CacheItem).path )
+        }
+
+        //icache[ path ] = cached
     }
 
     cached.Seek( 0, 0 )
