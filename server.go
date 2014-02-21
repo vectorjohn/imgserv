@@ -18,6 +18,7 @@ import (
     "container/heap"
     "encoding/json"
     "regexp"
+    "path"
 )
 
 func main() {
@@ -53,8 +54,10 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
         }
     }()
 
+    root := path.Clean( "./" + req.URL.Query().Get("root") )
+
     //TODO: make dir scanning possible.
-    dir, err := os.Open( "./" )
+    dir, err := os.Open( root )
     defer dir.Close()
 
     if err != nil {
@@ -68,12 +71,12 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
     }
 
     
-    files := make([]string, len(filestats))
-    for i, file := range filestats {
+    files := make([]string, 0, len(filestats))
+    for _, file := range filestats {
         if file.IsDir() {
-            files[i] = file.Name() + "/"
-        } else if isImage( &file ) {
-            files[i] = file.Name()
+            files = append( files, root + "/" + file.Name() + "/" )
+        } else if isImage( file ) {
+            files = append( files, root + "/" + file.Name() )
         }
     }
 
@@ -90,12 +93,9 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
 }
 
 var imgRE *regexp.Regexp = nil
-func isImage( f *os.FileInfo ) (bool) {
+func isImage( f os.FileInfo ) (bool) {
     if imgRE == nil {
-        imgRE, err := regexp.Compile( "" )
-        if err != nil {
-            panic( "WTF, bad re?" )
-        }
+        imgRE = regexp.MustCompile( `\.(png|jpg|gif)$` )
     }
 
     return imgRE.MatchString( f.Name() )
