@@ -33,3 +33,69 @@ ul.thumbnails li {
 ul.thumbnails a {
     display: block;
 }
+
+
+.slideshow-overlay {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    opacity: .75;
+    background-color: black;
+}
+
+.slideshow {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+}
+
+.slideshow, .slideshow ul {
+    background-color: transparent;
+}
+
+.slideshow ul, .slideshow li {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.slideshow .slide-next, .slideshow .slide-prev, .slideshow .slide-close {
+    position: absolute;
+    background-color: black;
+    opacity: .75;
+    color: white;
+    border: 1px solid white;
+    border-radius: 2px;
+    padding: 2px;
+    margin: 10px;
+}
+
+.slideshow .slide-next, .slideshow .slide-prev, .slide-close {
+    bottom: 0;
+}
+
+.slideshow .slide-close {
+    left: 48%;
+}
+
+.slideshow .slide-next {
+    right: 20%;
+}
+
+.slideshow .slide-prev {
+    left: 20%;
+}
+
+
+.slideshow img {
+    max-width: 100%;
+    max-height: 100%;
+}
+

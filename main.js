@@ -2,7 +2,7 @@ $(function() {
 
     var pwd = [ '' ];
 
-    $(window).bind( 'hashchange', listFromHash );
+    mainEvents();
 
     listFromHash();
 
@@ -58,6 +58,7 @@ $(function() {
             .attr( 'href', 'view/' + path );
 
         $('<img/>')
+            .addClass( 'thumbnail' )
             .attr( 'src', 'thumb/' + path )
             .appendTo( link );
 
@@ -80,5 +81,125 @@ $(function() {
                 //pwd.push( path );
                 listDir( pwd );
             });
+    }
+
+    function SlideShow( imageUrls ) {
+        var self = this;
+        this.imageUrls = imageUrls;
+        this.index = 0;
+
+        this.overlay = $('<div class="slideshow-overlay" />').appendTo( 'body' );
+        this.container = $('<div class="slideshow" />').appendTo( 'body' );
+        this.images = $('<ul/>').appendTo( this.container );
+
+        $('<a href="#prev" class="slide-prev">Prev</a>')
+            .click( function( ev ) {
+                ev.preventDefault();
+                self.prev();
+            })
+            .appendTo( this.container );
+
+        $('<a href="#next" class="slide-next">Next</a>')
+            .click( function( ev ) {
+                ev.preventDefault();
+                self.next();
+            })
+            .appendTo( this.container );
+
+        $('<a href="#close" class="slide-close">Close</a>')
+            .click( function( ev ) {
+                ev.preventDefault();
+                self.destroy();
+            })
+            .appendTo( this.container );
+
+
+        for ( var i = 0; i < imageUrls.length; i++ ) {
+            $('<li/>')
+                .appendTo( this.images );
+        }
+
+        this.container.on( 'click', function( ev ) {
+            ev.stopPropagation();
+        });
+
+        /*
+        this.overlay.on( 'click', function( ev ) {
+            self.destroy();
+        });
+        */
+    }
+
+    SlideShow.prototype = {
+
+        destroy: function() {
+            this.container.remove();
+            this.overlay.remove();
+        },
+
+        showIndex: function( i ) {
+            var li = this.images
+                .children()
+                .hide()
+                .eq( i );
+
+            var self = this;
+
+            if ( !li.length )
+                return;
+
+            this.index = i;
+
+            if ( !li.children('img').length ) {
+                this.imgTag( i ).appendTo( li );
+            }
+
+            li.show();
+            /*
+            if ( li.children('img').width() ) {
+                this.fit( li );
+            } else {
+                li.bind( 'load', function() {
+                    self.fit( li );
+                });
+            }
+            */
+        },
+
+        fit: function( li ) {
+            var img = li.children('img');
+            return img;
+            //TODO: maybe fancy fitting?  seems css was able to handle it
+        },
+
+        next: function() {
+            if ( (this.index + 1) < this.imageUrls.length ) {
+                this.showIndex( this.index + 1 );
+            }
+        },
+
+        prev: function() {
+            if ( this.index > 0 ) {
+                this.showIndex( this.index - 1 );
+            }
+        },
+
+        imgTag: function( i ) {
+            return $('<img />')
+                .attr( 'src', this.imageUrls[i] );
+        }
+    };
+
+    function mainEvents() {
+        $(window).bind( 'hashchange', listFromHash );
+
+        $('html').on( 'click', 'img.thumbnail', function( ev ) {
+            ev.preventDefault();
+            var images = $(this).closest( 'ul' ).find( 'a' ).map( function() {
+                return $(this).attr( 'href' );
+            });
+            var slideshow = new SlideShow( images );
+            slideshow.showIndex( $(this).closest( 'li' ).prevAll().length );
+        });
     }
 });
