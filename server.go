@@ -19,9 +19,14 @@ import (
     "encoding/json"
     "regexp"
     "path"
+    "runtime"
 )
 
 func main() {
+    if runtime.NumCPU() > 2 {
+        runtime.GOMAXPROCS( runtime.NumCPU() -1 )
+    }
+
 	port := "4001"
 	if len( os.Args ) > 1 {
 		port = os.Args[1]
@@ -54,10 +59,14 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
         }
     }()
 
-    root := path.Clean( "./" + req.URL.Query().Get("root") )
+    root := req.URL.Query().Get( "root" )
+    if root != "" {
+        root = path.Clean( root )
+    }
+    log.Println( "ROOT: ", root )
 
     //TODO: make dir scanning possible.
-    dir, err := os.Open( root )
+    dir, err := os.Open( "./" + root )
     defer dir.Close()
 
     if err != nil {
@@ -73,7 +82,7 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
     
     files := make([]string, 0, len(filestats))
     for _, file := range filestats {
-        if file.IsDir() {
+        if file.IsDir() && file.Name()[0] != '.' {
             files = append( files, root + "/" + file.Name() + "/" )
         } else if isImage( file ) {
             files = append( files, root + "/" + file.Name() )
