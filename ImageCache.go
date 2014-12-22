@@ -29,7 +29,7 @@ func NewImageCache() (*ImageCache) {
 
 func NewCacheItem(path string, data *bytes.Reader) (*CacheItem) {
     if start == 0 {
-        //FIXME: remoe this
+        //FIXME: remove this
         start = time.Now().UnixNano()
     }
     return &CacheItem{ data: data, path: path, timestamp: time.Now().UnixNano() }

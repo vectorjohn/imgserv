@@ -20,14 +20,30 @@ import (
     "regexp"
     "path"
     "runtime"
+    "strconv"
 )
+
+var config *ServerConfig
+//var icache map[string]*bytes.Reader
+var icache *ImageCache = NewImageCache()
+
 
 func main() {
     if runtime.NumCPU() > 2 {
         runtime.GOMAXPROCS( runtime.NumCPU() -1 )
     }
 
-	port := "4001"
+    var err error
+    config, err = loadImageCacheConfig()
+
+    if err != nil {
+        fmt.Println("Error parsing config: " + err.Error())
+        return
+    }
+
+    fmt.Println(config)
+
+	port := strconv.Itoa(config.Port)
 	if len( os.Args ) > 1 {
 		port = os.Args[1]
 	}
@@ -37,18 +53,21 @@ func main() {
         io.WriteString( resp, "Hello world!\n" + req.URL.Path )
     })
 
-    http.HandleFunc( "/index.json", indexJson )
+    http.HandleFunc( "/index.json", func(r http.ResponseWriter, req *http.Request) {
+        indexJson(config, r, req)
+    })
 
     relHandler( "/thumb/", serveThumb )
 
 	listenOn := "localhost:" + port
 	fmt.Println( "listening on " + listenOn )
-	
+
 	http.ListenAndServe(listenOn, nil )
 }
 
-func indexJson( resp http.ResponseWriter, req *http.Request ) {
+func indexJson( config *ServerConfig, resp http.ResponseWriter, req *http.Request ) {
     var outerr error
+    fmt.Println(config)
     defer func() {
         if recover() != nil {
             if outerr == nil {
@@ -63,10 +82,9 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
     if root != "" {
         root = path.Clean( root )
     }
-    log.Println( "ROOT: ", root )
 
     //TODO: make dir scanning possible.
-    dir, err := os.Open( "./" + root )
+    dir, err := os.Open( config.Root + "/" + root )
     defer dir.Close()
 
     if err != nil {
@@ -79,7 +97,7 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
         log.Panic( "ERROR: Could not read directory" )
     }
 
-    
+
     files := make([]string, 0, len(filestats))
     for _, file := range filestats {
         if file.IsDir() && file.Name()[0] != '.' {
@@ -93,7 +111,7 @@ func indexJson( resp http.ResponseWriter, req *http.Request ) {
         "status": "OK",
         "files": files,
     }
-    
+
     if bytes, err := json.Marshal( out ); err == nil {
         resp.Write( bytes )
     } else {
@@ -109,10 +127,6 @@ func isImage( f os.FileInfo ) (bool) {
 
     return imgRE.MatchString( f.Name() )
 }
-
-//var icache map[string]*bytes.Reader
-var icache *ImageCache = NewImageCache()
-var maxCache int = 100
 
 func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
 
@@ -145,7 +159,7 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
         icache.Update( path )
     } else {
         log.Println( "Generating thumbnail" )
-        fd, err := os.Open( path )
+        fd, err := os.Open( config.Root + "/" + path )
         defer fd.Close()
 
         if err != nil {
@@ -178,10 +192,10 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
         }
 
         cached = bytes.NewReader( data )
-    
+
         heap.Push( icache, NewCacheItem( path, cached ) )
 
-        if icache.Len() > maxCache {
+        if icache.Len() > config.MaxImages {
             log.Println( "Dropping oldest cache: ", heap.Pop( icache ).(*CacheItem).path )
         }
 
@@ -189,7 +203,7 @@ func serveThumb( resp http.ResponseWriter, req *http.Request, path string ) {
     }
 
     cached.Seek( 0, 0 )
-    io.Copy( resp, cached ) 
+    io.Copy( resp, cached )
 }
 
 func relHandler( prefix string, handler func( http.ResponseWriter, *http.Request, string ) ) {
