@@ -1,0 +1,5 @@
+{
+	"root": "./images",
+	"max_images": 250,
+	"port": 4002
+}
