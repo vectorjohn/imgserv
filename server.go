@@ -122,7 +122,7 @@ func indexJson( config *ServerConfig, resp http.ResponseWriter, req *http.Reques
 var imgRE *regexp.Regexp = nil
 func isImage( f os.FileInfo ) (bool) {
     if imgRE == nil {
-        imgRE = regexp.MustCompile( `\.(png|jpg|gif)$` )
+        imgRE = regexp.MustCompile( `(?i)\.(png|jpg|gif)$` )
     }
 
     return imgRE.MatchString( f.Name() )
