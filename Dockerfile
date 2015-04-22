@@ -10,5 +10,6 @@ RUN (chmod 755 $IMGSERV_HOME/htdocs/*)
 
 RUN ${IMGSERV_HOME}/setup.sh
 
+EXPOSE 80
 WORKDIR $IMGSERV_HOME
 CMD ${IMGSERV_HOME}/start.sh
